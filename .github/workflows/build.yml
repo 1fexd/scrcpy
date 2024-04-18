@@ -17,6 +17,8 @@ jobs:
             os_name: "bullseye"
           - distro: "ubuntu:focal"
             os_name: "focal"
+          - distro: "ubuntu:jammy"
+            os_name: "jammy"
 
     container:
       image: docker://${{ matrix.distro }}
