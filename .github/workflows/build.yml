@@ -24,7 +24,7 @@ jobs:
             os_name: "noble"
 
     container:
-      image: ${{ matrix.distro }}
+      image: docker://${{ matrix.distro }}
 
     env:
       SCRCPY_USER: scrcpy
@@ -61,7 +61,7 @@ jobs:
           groupadd -r ${SCRCPY_USER} || true
           echo "${SCRCPY_USER} ALL=(ALL) NOPASSWD: ALL" | tee /etc/sudoers.d/${SCRCPY_USER}
           chmod 0440 /etc/sudoers.d/${SCRCPY_USER}
-          useradd -m -u 1000 -r -g ${SCRCPY_USER} ${SCRCPY_USER} || true
+          useradd -m -u 1001 -r -g ${SCRCPY_USER} ${SCRCPY_USER} || true
           usermod -aG sudo ${SCRCPY_USER} || true
           chown -R ${SCRCPY_USER}:${SCRCPY_USER} /home/${SCRCPY_USER}
 
