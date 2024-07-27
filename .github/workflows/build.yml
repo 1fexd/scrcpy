@@ -20,6 +20,8 @@ jobs:
             os_name: "focal"
           - distro: "ubuntu:jammy"
             os_name: "jammy"
+          - distro: "ubuntu:noble"
+            os_name: "noble"
 
     container:
       image: docker://${{ matrix.distro }}
