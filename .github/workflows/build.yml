@@ -75,6 +75,11 @@ jobs:
           apt-get update -q
           apt-get -qq -y upgrade
           apt-get -o APT::Keep-Downloaded-Packages=true -y install \
+            ffmpeg \
+            libsdl2-2.0-0 \
+            adb \
+            libusb-1.0-0
+          apt-get -o APT::Keep-Downloaded-Packages=true -y install \
             sudo \
             jq \
             curl \
@@ -89,7 +94,8 @@ jobs:
             libavformat-dev \
             libavutil-dev \
             libswresample-dev \
-            libusb-1.0-0-dev \
+            libusb-1.0-0-dev
+          apt-get -o APT::Keep-Downloaded-Packages=true -y install \
             openjdk-17-jdk
 
       - name: Setup Android SDK
@@ -134,7 +140,7 @@ jobs:
             # Create the control file
             cat <<EOL >${SCRCPY_BUILD_DIR}/debian/DEBIAN/control
           Package: scrcpy
-          Version: 2.2
+          Version: 3.2
           Section: utils
           Priority: optional
           Architecture: amd64
