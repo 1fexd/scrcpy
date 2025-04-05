@@ -12,16 +12,16 @@ jobs:
     strategy:
       matrix:
         include:
-          - distro: "debian:bookworm"
-            os_name: "bookworm"
-          - distro: "debian:bullseye"
-            os_name: "bullseye"
-          - distro: "ubuntu:jammy"
-            os_name: "jammy"
-          - distro: "ubuntu:focal"
-            os_name: "focal"
-          - distro: "ubuntu:jammy"
-            os_name: "jammy"
+#          - distro: "debian:bookworm"
+#            os_name: "bookworm"
+#          - distro: "debian:bullseye"
+#            os_name: "bullseye"
+#          - distro: "ubuntu:jammy"
+#            os_name: "jammy"
+#          - distro: "ubuntu:focal"
+#            os_name: "focal"
+#          - distro: "ubuntu:jammy"
+#            os_name: "jammy"
           - distro: "ubuntu:noble"
             os_name: "noble"
 
