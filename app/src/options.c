@@ -23,11 +23,20 @@ const struct scrcpy_options scrcpy_options_default = {
     .record_format = SC_RECORD_FORMAT_AUTO,
     .keyboard_input_mode = SC_KEYBOARD_INPUT_MODE_AUTO,
     .mouse_input_mode = SC_MOUSE_INPUT_MODE_AUTO,
+    .gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_DISABLED,
     .mouse_bindings = {
-        .right_click = SC_MOUSE_BINDING_AUTO,
-        .middle_click = SC_MOUSE_BINDING_AUTO,
-        .click4 = SC_MOUSE_BINDING_AUTO,
-        .click5 = SC_MOUSE_BINDING_AUTO,
+        .pri = {
+            .right_click = SC_MOUSE_BINDING_AUTO,
+            .middle_click = SC_MOUSE_BINDING_AUTO,
+            .click4 = SC_MOUSE_BINDING_AUTO,
+            .click5 = SC_MOUSE_BINDING_AUTO,
+        },
+        .sec = {
+            .right_click = SC_MOUSE_BINDING_AUTO,
+            .middle_click = SC_MOUSE_BINDING_AUTO,
+            .click4 = SC_MOUSE_BINDING_AUTO,
+            .click5 = SC_MOUSE_BINDING_AUTO,
+        },
     },
     .camera_facing = SC_CAMERA_FACING_ANY,
     .port_range = {
@@ -40,7 +49,7 @@ const struct scrcpy_options scrcpy_options_default = {
     .max_size = 0,
     .video_bit_rate = 0,
     .audio_bit_rate = 0,
-    .max_fps = 0,
+    .max_fps = NULL,
     .lock_video_orientation = SC_LOCK_VIDEO_ORIENTATION_UNLOCKED,
     .display_orientation = SC_ORIENTATION_0,
     .record_orientation = SC_ORIENTATION_0,
@@ -93,6 +102,7 @@ const struct scrcpy_options scrcpy_options_default = {
     .list = 0,
     .window = true,
     .mouse_hover = true,
+    .audio_dup = false,
 };
 
 enum sc_orientation

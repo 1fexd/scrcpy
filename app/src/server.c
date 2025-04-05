@@ -147,7 +147,7 @@ log_level_to_server_string(enum sc_log_level level) {
             return "error";
         default:
             assert(!"unexpected log level");
-            return "(unknown)";
+            return NULL;
     }
 }
 
@@ -183,6 +183,7 @@ sc_server_get_codec_name(enum sc_codec codec) {
         case SC_CODEC_RAW:
             return "raw";
         default:
+            assert(!"unexpected codec");
             return NULL;
     }
 }
@@ -197,8 +198,39 @@ sc_server_get_camera_facing_name(enum sc_camera_facing camera_facing) {
         case SC_CAMERA_FACING_EXTERNAL:
             return "external";
         default:
+            assert(!"unexpected camera facing");
             return NULL;
     }
+}
+
+static const char *
+sc_server_get_audio_source_name(enum sc_audio_source audio_source) {
+    switch (audio_source) {
+        case SC_AUDIO_SOURCE_OUTPUT:
+            return "output";
+        case SC_AUDIO_SOURCE_MIC:
+            return "mic";
+        case SC_AUDIO_SOURCE_PLAYBACK:
+            return "playback";
+        default:
+            assert(!"unexpected audio source");
+            return NULL;
+    }
+}
+
+static bool
+validate_string(const char *s) {
+    // The parameters values are passed as command line arguments to adb, so
+    // they must either be properly escaped, or they must not contain any
+    // special shell characters.
+    // Since they are not properly escaped on Windows anyway (see
+    // sys/win/process.c), just forbid special shell characters.
+    if (strpbrk(s, " ;'\"*$?&`#\\|<>[]{}()!~\r\n")) {
+        LOGE("Invalid server param: [%s]", s);
+        return false;
+    }
+
+    return true;
 }
 
 static sc_pid
@@ -243,6 +275,11 @@ execute_server(struct sc_server *server,
         } \
         cmd[count++] = p; \
     } while(0)
+#define VALIDATE_STRING(s) do { \
+        if (!validate_string(s)) { \
+            goto end; \
+        } \
+    } while(0)
 
     ADD_PARAM("scid=%08x", params->scid);
     ADD_PARAM("log_level=%s", log_level_to_server_string(params->log_level));
@@ -271,14 +308,21 @@ execute_server(struct sc_server *server,
         assert(params->video_source == SC_VIDEO_SOURCE_CAMERA);
         ADD_PARAM("video_source=camera");
     }
-    if (params->audio_source == SC_AUDIO_SOURCE_MIC) {
-        ADD_PARAM("audio_source=mic");
+    // If audio is enabled, an "auto" audio source must have been resolved
+    assert(params->audio_source != SC_AUDIO_SOURCE_AUTO || !params->audio);
+    if (params->audio_source != SC_AUDIO_SOURCE_OUTPUT && params->audio) {
+        ADD_PARAM("audio_source=%s",
+                  sc_server_get_audio_source_name(params->audio_source));
+    }
+    if (params->audio_dup) {
+        ADD_PARAM("audio_dup=true");
     }
     if (params->max_size) {
         ADD_PARAM("max_size=%" PRIu16, params->max_size);
     }
     if (params->max_fps) {
-        ADD_PARAM("max_fps=%" PRIu16, params->max_fps);
+        VALIDATE_STRING(params->max_fps);
+        ADD_PARAM("max_fps=%s", params->max_fps);
     }
     if (params->lock_video_orientation != SC_LOCK_VIDEO_ORIENTATION_UNLOCKED) {
         ADD_PARAM("lock_video_orientation=%" PRIi8,
@@ -288,6 +332,7 @@ execute_server(struct sc_server *server,
         ADD_PARAM("tunnel_forward=true");
     }
     if (params->crop) {
+        VALIDATE_STRING(params->crop);
         ADD_PARAM("crop=%s", params->crop);
     }
     if (!params->control) {
@@ -298,9 +343,11 @@ execute_server(struct sc_server *server,
         ADD_PARAM("display_id=%" PRIu32, params->display_id);
     }
     if (params->camera_id) {
+        VALIDATE_STRING(params->camera_id);
         ADD_PARAM("camera_id=%s", params->camera_id);
     }
     if (params->camera_size) {
+        VALIDATE_STRING(params->camera_size);
         ADD_PARAM("camera_size=%s", params->camera_size);
     }
     if (params->camera_facing != SC_CAMERA_FACING_ANY) {
@@ -308,6 +355,7 @@ execute_server(struct sc_server *server,
             sc_server_get_camera_facing_name(params->camera_facing));
     }
     if (params->camera_ar) {
+        VALIDATE_STRING(params->camera_ar);
         ADD_PARAM("camera_ar=%s", params->camera_ar);
     }
     if (params->camera_fps) {
@@ -323,15 +371,19 @@ execute_server(struct sc_server *server,
         ADD_PARAM("stay_awake=true");
     }
     if (params->video_codec_options) {
+        VALIDATE_STRING(params->video_codec_options);
         ADD_PARAM("video_codec_options=%s", params->video_codec_options);
     }
     if (params->audio_codec_options) {
+        VALIDATE_STRING(params->audio_codec_options);
         ADD_PARAM("audio_codec_options=%s", params->audio_codec_options);
     }
     if (params->video_encoder) {
+        VALIDATE_STRING(params->video_encoder);
         ADD_PARAM("video_encoder=%s", params->video_encoder);
     }
     if (params->audio_encoder) {
+        VALIDATE_STRING(params->audio_encoder);
         ADD_PARAM("audio_encoder=%s", params->audio_encoder);
     }
     if (params->power_off_on_close) {
@@ -605,6 +657,14 @@ sc_server_connect_to(struct sc_server *server, struct sc_server_info *info) {
                 }
             }
         }
+    }
+
+    if (control_socket != SC_SOCKET_NONE) {
+        // Disable Nagle's algorithm for the control socket
+        // (it only impacts the sending side, so it is useless to set it
+        // for the other sockets)
+        bool ok = net_set_tcp_nodelay(control_socket, true);
+        (void) ok; // error already logged
     }
 
     // we don't need the adb tunnel anymore

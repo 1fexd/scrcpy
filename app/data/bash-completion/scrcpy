@@ -6,6 +6,7 @@ _scrcpy() {
         --audio-buffer=
         --audio-codec=
         --audio-codec-options=
+        --audio-dup
         --audio-encoder=
         --audio-source=
         --audio-output-buffer=
@@ -25,6 +26,8 @@ _scrcpy() {
         -e --select-tcpip
         -f --fullscreen
         --force-adb-forward
+        -G
+        --gamepad=
         -h --help
         -K
         --keyboard=
@@ -111,7 +114,7 @@ _scrcpy() {
             return
             ;;
         --audio-source)
-            COMPREPLY=($(compgen -W 'output mic' -- "$cur"))
+            COMPREPLY=($(compgen -W 'output mic playback' -- "$cur"))
             return
             ;;
         --camera-facing)
@@ -124,6 +127,10 @@ _scrcpy() {
             ;;
         --mouse)
             COMPREPLY=($(compgen -W 'disabled sdk uhid aoa' -- "$cur"))
+            return
+            ;;
+        --gamepad)
+            COMPREPLY=($(compgen -W 'disabled uhid aoa' -- "$cur"))
             return
             ;;
         --orientation|--display-orientation)

@@ -59,6 +59,7 @@ enum sc_audio_source {
     SC_AUDIO_SOURCE_AUTO, // OUTPUT for video DISPLAY, MIC for video CAMERA
     SC_AUDIO_SOURCE_OUTPUT,
     SC_AUDIO_SOURCE_MIC,
+    SC_AUDIO_SOURCE_PLAYBACK,
 };
 
 enum sc_camera_facing {
@@ -141,6 +142,7 @@ enum sc_lock_video_orientation {
 
 enum sc_keyboard_input_mode {
     SC_KEYBOARD_INPUT_MODE_AUTO,
+    SC_KEYBOARD_INPUT_MODE_UHID_OR_AOA, // normal vs otg mode
     SC_KEYBOARD_INPUT_MODE_DISABLED,
     SC_KEYBOARD_INPUT_MODE_SDK,
     SC_KEYBOARD_INPUT_MODE_UHID,
@@ -149,10 +151,18 @@ enum sc_keyboard_input_mode {
 
 enum sc_mouse_input_mode {
     SC_MOUSE_INPUT_MODE_AUTO,
+    SC_MOUSE_INPUT_MODE_UHID_OR_AOA, // normal vs otg mode
     SC_MOUSE_INPUT_MODE_DISABLED,
     SC_MOUSE_INPUT_MODE_SDK,
     SC_MOUSE_INPUT_MODE_UHID,
     SC_MOUSE_INPUT_MODE_AOA,
+};
+
+enum sc_gamepad_input_mode {
+    SC_GAMEPAD_INPUT_MODE_DISABLED,
+    SC_GAMEPAD_INPUT_MODE_UHID_OR_AOA, // normal vs otg mode
+    SC_GAMEPAD_INPUT_MODE_UHID,
+    SC_GAMEPAD_INPUT_MODE_AOA,
 };
 
 enum sc_mouse_binding {
@@ -165,11 +175,16 @@ enum sc_mouse_binding {
     SC_MOUSE_BINDING_EXPAND_NOTIFICATION_PANEL,
 };
 
-struct sc_mouse_bindings {
+struct sc_mouse_binding_set {
     enum sc_mouse_binding right_click;
     enum sc_mouse_binding middle_click;
     enum sc_mouse_binding click4;
     enum sc_mouse_binding click5;
+};
+
+struct sc_mouse_bindings {
+    struct sc_mouse_binding_set pri;
+    struct sc_mouse_binding_set sec; // When Shift is pressed
 };
 
 enum sc_key_inject_mode {
@@ -225,6 +240,7 @@ struct scrcpy_options {
     enum sc_record_format record_format;
     enum sc_keyboard_input_mode keyboard_input_mode;
     enum sc_mouse_input_mode mouse_input_mode;
+    enum sc_gamepad_input_mode gamepad_input_mode;
     struct sc_mouse_bindings mouse_bindings;
     enum sc_camera_facing camera_facing;
     struct sc_port_range port_range;
@@ -234,7 +250,7 @@ struct scrcpy_options {
     uint16_t max_size;
     uint32_t video_bit_rate;
     uint32_t audio_bit_rate;
-    uint16_t max_fps;
+    const char *max_fps; // float to be parsed by the server
     enum sc_lock_video_orientation lock_video_orientation;
     enum sc_orientation display_orientation;
     enum sc_orientation record_orientation;
@@ -291,6 +307,7 @@ struct scrcpy_options {
     uint8_t list;
     bool window;
     bool mouse_hover;
+    bool audio_dup;
 };
 
 extern const struct scrcpy_options scrcpy_options_default;

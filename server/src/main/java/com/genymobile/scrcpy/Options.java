@@ -1,5 +1,15 @@
 package com.genymobile.scrcpy;
 
+import com.genymobile.scrcpy.audio.AudioCodec;
+import com.genymobile.scrcpy.audio.AudioSource;
+import com.genymobile.scrcpy.device.Size;
+import com.genymobile.scrcpy.util.CodecOption;
+import com.genymobile.scrcpy.util.Ln;
+import com.genymobile.scrcpy.video.CameraAspectRatio;
+import com.genymobile.scrcpy.video.CameraFacing;
+import com.genymobile.scrcpy.video.VideoCodec;
+import com.genymobile.scrcpy.video.VideoSource;
+
 import android.graphics.Rect;
 
 import java.util.List;
@@ -16,9 +26,10 @@ public class Options {
     private AudioCodec audioCodec = AudioCodec.OPUS;
     private VideoSource videoSource = VideoSource.DISPLAY;
     private AudioSource audioSource = AudioSource.OUTPUT;
+    private boolean audioDup;
     private int videoBitRate = 8000000;
     private int audioBitRate = 128000;
-    private int maxFps;
+    private float maxFps;
     private int lockVideoOrientation = -1;
     private boolean tunnelForward;
     private Rect crop;
@@ -90,6 +101,10 @@ public class Options {
         return audioSource;
     }
 
+    public boolean getAudioDup() {
+        return audioDup;
+    }
+
     public int getVideoBitRate() {
         return videoBitRate;
     }
@@ -98,7 +113,7 @@ public class Options {
         return audioBitRate;
     }
 
-    public int getMaxFps() {
+    public float getMaxFps() {
         return maxFps;
     }
 
@@ -293,6 +308,9 @@ public class Options {
                     }
                     options.audioSource = audioSource;
                     break;
+                case "audio_dup":
+                    options.audioDup = Boolean.parseBoolean(value);
+                    break;
                 case "max_size":
                     options.maxSize = Integer.parseInt(value) & ~7; // multiple of 8
                     break;
@@ -303,7 +321,7 @@ public class Options {
                     options.audioBitRate = Integer.parseInt(value);
                     break;
                 case "max_fps":
-                    options.maxFps = Integer.parseInt(value);
+                    options.maxFps = parseFloat("max_fps", value);
                     break;
                 case "lock_video_orientation":
                     options.lockVideoOrientation = Integer.parseInt(value);
@@ -438,8 +456,14 @@ public class Options {
         }
         int width = Integer.parseInt(tokens[0]);
         int height = Integer.parseInt(tokens[1]);
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("Invalid crop size: " + width + "x" + height);
+        }
         int x = Integer.parseInt(tokens[2]);
         int y = Integer.parseInt(tokens[3]);
+        if (x < 0 || y < 0) {
+            throw new IllegalArgumentException("Invalid crop offset: " + x + ":" + y);
+        }
         return new Rect(x, y, x + width, y + height);
     }
 
@@ -468,5 +492,13 @@ public class Options {
 
         float floatAr = Float.parseFloat(tokens[0]);
         return CameraAspectRatio.fromFloat(floatAr);
+    }
+
+    private static float parseFloat(String key, String value) {
+        try {
+            return Float.parseFloat(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid float value for " + key + ": \"" + value + "\"");
+        }
     }
 }

@@ -100,6 +100,8 @@ enum {
     OPT_NO_WINDOW,
     OPT_MOUSE_BIND,
     OPT_NO_MOUSE_HOVER,
+    OPT_AUDIO_DUP,
+    OPT_GAMEPAD,
 };
 
 struct sc_option {
@@ -155,7 +157,7 @@ static const struct sc_option options[] = {
         .argdesc = "ms",
         .text = "Configure the audio buffering delay (in milliseconds).\n"
                 "Lower values decrease the latency, but increase the "
-                "likelyhood of buffer underrun (causing audio glitches).\n"
+                "likelihood of buffer underrun (causing audio glitches).\n"
                 "Default is 50.",
     },
     {
@@ -178,6 +180,13 @@ static const struct sc_option options[] = {
                 "<https://d.android.com/reference/android/media/MediaFormat>",
     },
     {
+        .longopt_id = OPT_AUDIO_DUP,
+        .longopt = "audio-dup",
+        .text = "Duplicate audio (capture and keep playing on the device).\n"
+                "This feature is only available with --audio-source=playback."
+
+    },
+    {
         .longopt_id = OPT_AUDIO_ENCODER,
         .longopt = "audio-encoder",
         .argdesc = "name",
@@ -189,7 +198,13 @@ static const struct sc_option options[] = {
         .longopt_id = OPT_AUDIO_SOURCE,
         .longopt = "audio-source",
         .argdesc = "source",
-        .text = "Select the audio source (output or mic).\n"
+        .text = "Select the audio source (output, mic or playback).\n"
+                "The \"output\" source forwards the whole audio output, and "
+                "disables playback on the device.\n"
+                "The \"playback\" source captures the audio playback (Android "
+                "apps can opt-out, so the whole output is not necessarily "
+                "captured).\n"
+                "The \"mic\" source captures the microphone.\n"
                 "Default is output.",
     },
     {
@@ -359,13 +374,30 @@ static const struct sc_option options[] = {
         .longopt = "forward-all-clicks",
     },
     {
+        .shortopt = 'G',
+        .text = "Same as --gamepad=uhid, or --gamepad=aoa if --otg is set.",
+    },
+    {
+        .longopt_id = OPT_GAMEPAD,
+        .longopt = "gamepad",
+        .argdesc = "mode",
+        .text = "Select how to send gamepad inputs to the device.\n"
+                "Possible values are \"disabled\", \"uhid\" and \"aoa\".\n"
+                "\"disabled\" does not send gamepad inputs to the device.\n"
+                "\"uhid\" simulates physical HID gamepads using the Linux UHID "
+                "kernel module on the device.\n"
+                "\"aoa\" simulates physical gamepads using the AOAv2 protocol."
+                "It may only work over USB.\n"
+                "Also see --keyboard and --mouse.",
+    },
+    {
         .shortopt = 'h',
         .longopt = "help",
         .text = "Print this help.",
     },
     {
         .shortopt = 'K',
-        .text = "Same as --keyboard=uhid.",
+        .text = "Same as --keyboard=uhid, or --keyboard=aoa if --otg is set.",
     },
     {
         .longopt_id = OPT_KEYBOARD,
@@ -389,7 +421,7 @@ static const struct sc_option options[] = {
                 "start -a android.settings.HARD_KEYBOARD_SETTINGS`.\n"
                 "This option is only available when a HID keyboard is enabled "
                 "(or a physical keyboard is connected).\n"
-                "Also see --mouse.",
+                "Also see --mouse and --gamepad.",
     },
     {
         .longopt_id = OPT_KILL_ADB_ON_CLOSE,
@@ -461,7 +493,7 @@ static const struct sc_option options[] = {
     },
     {
         .shortopt = 'M',
-        .text = "Same as --mouse=uhid.",
+        .text = "Same as --mouse=uhid, or --mouse=aoa if --otg is set.",
     },
     {
         .longopt_id = OPT_MAX_FPS,
@@ -488,16 +520,22 @@ static const struct sc_option options[] = {
                 "to control the device directly (relative mouse mode).\n"
                 "LAlt, LSuper or RSuper toggle the capture mode, to give "
                 "control of the mouse back to the computer.\n"
-                "Also see --keyboard.",
+                "Also see --keyboard and --gamepad.",
     },
     {
         .longopt_id = OPT_MOUSE_BIND,
         .longopt = "mouse-bind",
-        .argdesc = "xxxx",
+        .argdesc = "xxxx[:xxxx]",
         .text = "Configure bindings of secondary clicks.\n"
-                "The argument must be exactly 4 characters, one for each "
-                "secondary click (in order: right click, middle click, 4th "
-                "click, 5th click).\n"
+                "The argument must be one or two sequences (separated by ':') "
+                "of exactly 4 characters, one for each secondary click (in "
+                "order: right click, middle click, 4th click, 5th click).\n"
+                "The first sequence defines the primary bindings, used when a "
+                "mouse button is pressed alone. The second sequence defines "
+                "the secondary bindings, used when a mouse button is pressed "
+                "while the Shift key is held.\n"
+                "If the second sequence of bindings is omitted, then it is the "
+                "same as the first one.\n"
                 "Each character must be one of the following:\n"
                 " '+': forward the click to the device\n"
                 " '-': ignore the click\n"
@@ -505,7 +543,8 @@ static const struct sc_option options[] = {
                 " 'h': trigger shortcut HOME\n"
                 " 's': trigger shortcut APP_SWITCH\n"
                 " 'n': trigger shortcut \"expand notification panel\"\n"
-                "Default is 'bhsn' for SDK mouse, and '++++' for AOA and UHID.",
+                "Default is 'bhsn:++++' for SDK mouse, and '++++:bhsn' for AOA "
+                "and UHID.",
     },
     {
         .shortopt = 'n',
@@ -616,7 +655,7 @@ static const struct sc_option options[] = {
                 "Keyboard and mouse may be disabled separately using"
                 "--keyboard=disabled and --mouse=disabled.\n"
                 "It may only work over USB.\n"
-                "See --keyboard and --mouse.",
+                "See --keyboard, --mouse and --gamepad.",
     },
     {
         .shortopt = 'p',
@@ -633,7 +672,7 @@ static const struct sc_option options[] = {
         .optional_arg = true,
         .text = "Configure pause on exit. Possible values are \"true\" (always "
                 "pause on exit), \"false\" (never pause on exit) and "
-                "\"if-error\" (pause only if an error occured).\n"
+                "\"if-error\" (pause only if an error occurred).\n"
                 "This is useful to prevent the terminal window from "
                 "automatically closing, so that error messages can be read.\n"
                 "Default is \"false\".\n"
@@ -1328,7 +1367,7 @@ print_exit_status(const struct sc_exit_status *status, unsigned cols) {
         return;
     }
 
-    assert(strlen(text) >= 9); // Contains at least the initial identation
+    assert(strlen(text) >= 9); // Contains at least the initial indentation
 
     // text + 9 to remove the initial indentation
     printf("    %3d  %s\n", status->value, text + 9);
@@ -1449,18 +1488,6 @@ parse_max_size(const char *s, uint16_t *max_size) {
     }
 
     *max_size = (uint16_t) value;
-    return true;
-}
-
-static bool
-parse_max_fps(const char *s, uint16_t *max_fps) {
-    long value;
-    bool ok = parse_integer_arg(s, &value, false, 0, 0xFFFF, "max fps");
-    if (!ok) {
-        return false;
-    }
-
-    *max_fps = (uint16_t) value;
     return true;
 }
 
@@ -1924,7 +1951,13 @@ parse_audio_source(const char *optarg, enum sc_audio_source *source) {
         return true;
     }
 
-    LOGE("Unsupported audio source: %s (expected output or mic)", optarg);
+    if (!strcmp(optarg, "playback")) {
+        *source = SC_AUDIO_SOURCE_PLAYBACK;
+        return true;
+    }
+
+    LOGE("Unsupported audio source: %s (expected output, mic or playback)",
+         optarg);
     return false;
 }
 
@@ -2032,6 +2065,32 @@ parse_mouse(const char *optarg, enum sc_mouse_input_mode *mode) {
 }
 
 static bool
+parse_gamepad(const char *optarg, enum sc_gamepad_input_mode *mode) {
+    if (!strcmp(optarg, "disabled")) {
+        *mode = SC_GAMEPAD_INPUT_MODE_DISABLED;
+        return true;
+    }
+
+    if (!strcmp(optarg, "uhid")) {
+        *mode = SC_GAMEPAD_INPUT_MODE_UHID;
+        return true;
+    }
+
+    if (!strcmp(optarg, "aoa")) {
+#ifdef HAVE_USB
+        *mode = SC_GAMEPAD_INPUT_MODE_AOA;
+        return true;
+#else
+        LOGE("--gamepad=aoa is disabled.");
+        return false;
+#endif
+    }
+
+    LOGE("Unsupported gamepad: %s (expected disabled or aoa)", optarg);
+    return false;
+}
+
+static bool
 parse_time_limit(const char *s, sc_tick *tick) {
     long value;
     bool ok = parse_integer_arg(s, &value, false, 0, 0x7FFFFFFF, "time limit");
@@ -2095,24 +2154,46 @@ parse_mouse_binding(char c, enum sc_mouse_binding *b) {
 }
 
 static bool
-parse_mouse_bindings(const char *s, struct sc_mouse_bindings *mb) {
-    if (strlen(s) != 4) {
-        LOGE("Invalid mouse bindings: '%s' (expected exactly 4 characters from "
-             "{'+', '-', 'b', 'h', 's', 'n'})", s);
+parse_mouse_binding_set(const char *s, struct sc_mouse_binding_set *mbs) {
+    assert(strlen(s) >= 4);
+
+    if (!parse_mouse_binding(s[0], &mbs->right_click)) {
+        return false;
+    }
+    if (!parse_mouse_binding(s[1], &mbs->middle_click)) {
+        return false;
+    }
+    if (!parse_mouse_binding(s[2], &mbs->click4)) {
+        return false;
+    }
+    if (!parse_mouse_binding(s[3], &mbs->click5)) {
         return false;
     }
 
-    if (!parse_mouse_binding(s[0], &mb->right_click)) {
+    return true;
+}
+
+static bool
+parse_mouse_bindings(const char *s, struct sc_mouse_bindings *mb) {
+    size_t len = strlen(s);
+    // either "xxxx" or "xxxx:xxxx"
+    if (len != 4 && (len != 9 || s[4] != ':')) {
+        LOGE("Invalid mouse bindings: '%s' (expected 'xxxx' or 'xxxx:xxxx', "
+             "with each 'x' being in {'+', '-', 'b', 'h', 's', 'n'})", s);
         return false;
     }
-    if (!parse_mouse_binding(s[1], &mb->middle_click)) {
+
+    if (!parse_mouse_binding_set(s, &mb->pri)) {
         return false;
     }
-    if (!parse_mouse_binding(s[2], &mb->click4)) {
-        return false;
-    }
-    if (!parse_mouse_binding(s[3], &mb->click5)) {
-        return false;
+
+    if (len == 9) {
+        if (!parse_mouse_binding_set(s + 5, &mb->sec)) {
+            return false;
+        }
+    } else {
+        // use the same bindings for Shift+click
+        mb->sec = mb->pri;
     }
 
     return true;
@@ -2171,7 +2252,7 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                 args->help = true;
                 break;
             case 'K':
-                opts->keyboard_input_mode = SC_KEYBOARD_INPUT_MODE_UHID;
+                opts->keyboard_input_mode = SC_KEYBOARD_INPUT_MODE_UHID_OR_AOA;
                 break;
             case OPT_KEYBOARD:
                 if (!parse_keyboard(optarg, &opts->keyboard_input_mode)) {
@@ -2183,9 +2264,7 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                      "--keyboard=uhid instead.");
                 return false;
             case OPT_MAX_FPS:
-                if (!parse_max_fps(optarg, &opts->max_fps)) {
-                    return false;
-                }
+                opts->max_fps = optarg;
                 break;
             case 'm':
                 if (!parse_max_size(optarg, &opts->max_size)) {
@@ -2193,7 +2272,7 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                 }
                 break;
             case 'M':
-                opts->mouse_input_mode = SC_MOUSE_INPUT_MODE_UHID;
+                opts->mouse_input_mode = SC_MOUSE_INPUT_MODE_UHID_OR_AOA;
                 break;
             case OPT_MOUSE:
                 if (!parse_mouse(optarg, &opts->mouse_input_mode)) {
@@ -2408,10 +2487,18 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
                 LOGW("--forward-all-clicks is deprecated, "
                      "use --mouse-bind=++++ instead.");
                 opts->mouse_bindings = (struct sc_mouse_bindings) {
-                    .right_click = SC_MOUSE_BINDING_CLICK,
-                    .middle_click = SC_MOUSE_BINDING_CLICK,
-                    .click4 = SC_MOUSE_BINDING_CLICK,
-                    .click5 = SC_MOUSE_BINDING_CLICK,
+                    .pri = {
+                        .right_click = SC_MOUSE_BINDING_CLICK,
+                        .middle_click = SC_MOUSE_BINDING_CLICK,
+                        .click4 = SC_MOUSE_BINDING_CLICK,
+                        .click5 = SC_MOUSE_BINDING_CLICK,
+                    },
+                    .sec = {
+                        .right_click = SC_MOUSE_BINDING_CLICK,
+                        .middle_click = SC_MOUSE_BINDING_CLICK,
+                        .click4 = SC_MOUSE_BINDING_CLICK,
+                        .click5 = SC_MOUSE_BINDING_CLICK,
+                    },
                 };
                 break;
             case OPT_LEGACY_PASTE:
@@ -2566,6 +2653,17 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             case OPT_NO_WINDOW:
                 opts->window = false;
                 break;
+            case OPT_AUDIO_DUP:
+                opts->audio_dup = true;
+                break;
+            case 'G':
+                opts->gamepad_input_mode = SC_GAMEPAD_INPUT_MODE_UHID_OR_AOA;
+                break;
+            case OPT_GAMEPAD:
+                if (!parse_gamepad(optarg, &opts->gamepad_input_mode)) {
+                    return false;
+                }
+                break;
             default:
                 // getopt prints the error message on stderr
                 return false;
@@ -2683,7 +2781,12 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
         if (opts->keyboard_input_mode == SC_KEYBOARD_INPUT_MODE_AUTO) {
             opts->keyboard_input_mode = otg ? SC_KEYBOARD_INPUT_MODE_AOA
                                             : SC_KEYBOARD_INPUT_MODE_SDK;
+        } else if (opts->keyboard_input_mode
+                == SC_KEYBOARD_INPUT_MODE_UHID_OR_AOA) {
+            opts->keyboard_input_mode = otg ? SC_KEYBOARD_INPUT_MODE_AOA
+                                            : SC_KEYBOARD_INPUT_MODE_UHID;
         }
+
         if (opts->mouse_input_mode == SC_MOUSE_INPUT_MODE_AUTO) {
             if (otg) {
                 opts->mouse_input_mode = SC_MOUSE_INPUT_MODE_AOA;
@@ -2693,34 +2796,51 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             } else {
                 opts->mouse_input_mode = SC_MOUSE_INPUT_MODE_SDK;
             }
+        } else if (opts->mouse_input_mode == SC_MOUSE_INPUT_MODE_UHID_OR_AOA) {
+            opts->mouse_input_mode = otg ? SC_MOUSE_INPUT_MODE_AOA
+                                         : SC_MOUSE_INPUT_MODE_UHID;
         } else if (opts->mouse_input_mode == SC_MOUSE_INPUT_MODE_SDK
                     && !opts->video_playback) {
             LOGE("SDK mouse mode requires video playback. Try --mouse=uhid.");
             return false;
         }
+        if (opts->gamepad_input_mode == SC_GAMEPAD_INPUT_MODE_UHID_OR_AOA) {
+            opts->gamepad_input_mode = otg ? SC_GAMEPAD_INPUT_MODE_AOA
+                                           : SC_GAMEPAD_INPUT_MODE_UHID;
+        }
     }
 
-    // If mouse bindings are not explictly set, configure default bindings
-    if (opts->mouse_bindings.right_click == SC_MOUSE_BINDING_AUTO) {
-        assert(opts->mouse_bindings.middle_click == SC_MOUSE_BINDING_AUTO);
-        assert(opts->mouse_bindings.click4 == SC_MOUSE_BINDING_AUTO);
-        assert(opts->mouse_bindings.click5 == SC_MOUSE_BINDING_AUTO);
+    // If mouse bindings are not explicitly set, configure default bindings
+    if (opts->mouse_bindings.pri.right_click == SC_MOUSE_BINDING_AUTO) {
+        assert(opts->mouse_bindings.pri.middle_click == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.pri.click4 == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.pri.click5 == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.sec.right_click == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.sec.middle_click == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.sec.click4 == SC_MOUSE_BINDING_AUTO);
+        assert(opts->mouse_bindings.sec.click5 == SC_MOUSE_BINDING_AUTO);
+
+        static struct sc_mouse_binding_set default_shortcuts = {
+            .right_click = SC_MOUSE_BINDING_BACK,
+            .middle_click = SC_MOUSE_BINDING_HOME,
+            .click4 = SC_MOUSE_BINDING_APP_SWITCH,
+            .click5 = SC_MOUSE_BINDING_EXPAND_NOTIFICATION_PANEL,
+        };
+
+        static struct sc_mouse_binding_set forward = {
+            .right_click = SC_MOUSE_BINDING_CLICK,
+            .middle_click = SC_MOUSE_BINDING_CLICK,
+            .click4 = SC_MOUSE_BINDING_CLICK,
+            .click5 = SC_MOUSE_BINDING_CLICK,
+        };
 
         // By default, forward all clicks only for UHID and AOA
         if (opts->mouse_input_mode == SC_MOUSE_INPUT_MODE_SDK) {
-            opts->mouse_bindings = (struct sc_mouse_bindings) {
-                .right_click = SC_MOUSE_BINDING_BACK,
-                .middle_click = SC_MOUSE_BINDING_HOME,
-                .click4 = SC_MOUSE_BINDING_APP_SWITCH,
-                .click5 = SC_MOUSE_BINDING_EXPAND_NOTIFICATION_PANEL,
-            };
+            opts->mouse_bindings.pri = default_shortcuts;
+            opts->mouse_bindings.sec = forward;
         } else {
-            opts->mouse_bindings = (struct sc_mouse_bindings) {
-                .right_click = SC_MOUSE_BINDING_CLICK,
-                .middle_click = SC_MOUSE_BINDING_CLICK,
-                .click4 = SC_MOUSE_BINDING_CLICK,
-                .click5 = SC_MOUSE_BINDING_CLICK,
-            };
+            opts->mouse_bindings.pri = forward;
+            opts->mouse_bindings.sec = default_shortcuts;
         }
     }
 
@@ -2744,9 +2864,17 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
             return false;
         }
 
+        enum sc_gamepad_input_mode gmode = opts->gamepad_input_mode;
+        if (gmode != SC_GAMEPAD_INPUT_MODE_AOA
+                && gmode != SC_GAMEPAD_INPUT_MODE_DISABLED) {
+            LOGE("In OTG mode, --gamepad only supports aoa or disabled.");
+            return false;
+        }
+
         if (kmode == SC_KEYBOARD_INPUT_MODE_DISABLED
-                && mmode == SC_MOUSE_INPUT_MODE_DISABLED) {
-            LOGE("Could not disable both keyboard and mouse in OTG mode.");
+                && mmode == SC_MOUSE_INPUT_MODE_DISABLED
+                && gmode == SC_GAMEPAD_INPUT_MODE_DISABLED) {
+            LOGE("Cannot not disable all inputs in OTG mode.");
             return false;
         }
     }
@@ -2787,18 +2915,18 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
         }
 
         if (opts->camera_id && opts->camera_facing != SC_CAMERA_FACING_ANY) {
-            LOGE("Could not specify both --camera-id and --camera-facing");
+            LOGE("Cannot specify both --camera-id and --camera-facing");
             return false;
         }
 
         if (opts->camera_size) {
             if (opts->max_size) {
-                LOGE("Could not specify both --camera-size and -m/--max-size");
+                LOGE("Cannot specify both --camera-size and -m/--max-size");
                 return false;
             }
 
             if (opts->camera_ar) {
-                LOGE("Could not specify both --camera-size and --camera-ar");
+                LOGE("Cannot specify both --camera-size and --camera-ar");
                 return false;
             }
         }
@@ -2825,10 +2953,28 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
     if (opts->audio && opts->audio_source == SC_AUDIO_SOURCE_AUTO) {
         // Select the audio source according to the video source
         if (opts->video_source == SC_VIDEO_SOURCE_DISPLAY) {
-            opts->audio_source = SC_AUDIO_SOURCE_OUTPUT;
+            if (opts->audio_dup) {
+                LOGI("Audio duplication enabled: audio source switched to "
+                     "\"playback\"");
+                opts->audio_source = SC_AUDIO_SOURCE_PLAYBACK;
+            } else {
+                opts->audio_source = SC_AUDIO_SOURCE_OUTPUT;
+            }
         } else {
             opts->audio_source = SC_AUDIO_SOURCE_MIC;
             LOGI("Camera video source: microphone audio source selected");
+        }
+    }
+
+    if (opts->audio_dup) {
+        if (!opts->audio) {
+            LOGE("--audio-dup not supported if audio is disabled");
+            return false;
+        }
+
+        if (opts->audio_source != SC_AUDIO_SOURCE_PLAYBACK) {
+            LOGE("--audio-dup is specific to --audio-source=playback");
+            return false;
         }
     }
 
@@ -2921,19 +3067,19 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
 
     if (!opts->control) {
         if (opts->turn_screen_off) {
-            LOGE("Could not request to turn screen off if control is disabled");
+            LOGE("Cannot request to turn screen off if control is disabled");
             return false;
         }
         if (opts->stay_awake) {
-            LOGE("Could not request to stay awake if control is disabled");
+            LOGE("Cannot request to stay awake if control is disabled");
             return false;
         }
         if (opts->show_touches) {
-            LOGE("Could not request to show touches if control is disabled");
+            LOGE("Cannot request to show touches if control is disabled");
             return false;
         }
         if (opts->power_off_on_close) {
-            LOGE("Could not request power off on close if control is disabled");
+            LOGE("Cannot request power off on close if control is disabled");
             return false;
         }
     }
@@ -2958,7 +3104,7 @@ parse_args_with_getopt(struct scrcpy_cli_args *args, int argc, char *argv[],
         // OTG mode is compatible with only very few options.
         // Only report obvious errors.
         if (opts->record_filename) {
-            LOGE("OTG mode: could not record");
+            LOGE("OTG mode: cannot record");
             return false;
         }
         if (opts->turn_screen_off) {
@@ -3013,7 +3159,7 @@ sc_get_pause_on_exit(int argc, char *argv[]) {
             if (!strcmp(value, "if-error")) {
                 return SC_PAUSE_ON_EXIT_IF_ERROR;
             }
-            // Set to false, inclusing when the value is invalid
+            // Set to false, including when the value is invalid
             return SC_PAUSE_ON_EXIT_FALSE;
         }
     }

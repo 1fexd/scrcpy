@@ -2,7 +2,7 @@
 source for the project. Do not download releases from random websites, even if
 their name contains `scrcpy`.**
 
-# scrcpy (v2.5)
+# scrcpy (v2.7)
 
 <img src="app/data/icon.svg" width="128" height="128" alt="scrcpy" align="right" />
 
@@ -37,6 +37,7 @@ Its features include:
  - [camera mirroring](doc/camera.md) (Android 12+)
  - [mirroring as a webcam (V4L2)](doc/v4l2.md) (Linux-only)
  - physical [keyboard][hid-keyboard] and [mouse][hid-mouse] simulation (HID)
+ - [gamepad](doc/gamepad.md) support
  - [OTG mode](doc/otg.md)
  - and more…
 
@@ -53,10 +54,16 @@ Make sure you [enabled USB debugging][enable-adb] on your device(s).
 
 [enable-adb]: https://developer.android.com/studio/debug/dev-options#enable
 
-On some devices, you also need to enable [an additional option][control] `USB
-debugging (Security Settings)` (this is an item different from `USB debugging`)
-to control it using a keyboard and mouse. Rebooting the device is necessary once
-this option is set.
+On some devices (especially Xiaomi), you might get the following error:
+
+```
+java.lang.SecurityException: Injecting input events requires the caller (or the source of the instrumentation, if any) to have the INJECT_EVENTS permission.
+```
+
+In that case, you need to enable [an additional option][control] `USB debugging
+(Security Settings)` (this is an item different from `USB debugging`) to control
+it using a keyboard and mouse. Rebooting the device is necessary once this
+option is set.
 
 [control]: https://github.com/Genymobile/scrcpy/issues/70#issuecomment-373286323
 
@@ -105,6 +112,13 @@ Here are just some common examples.
     scrcpy --otg
     ```
 
+ - Control the device using gamepad controllers plugged into the computer:
+
+    ```bash
+    scrcpy --gamepad=uhid
+    scrcpy -G  # short version
+    ```
+
 ## User documentation
 
 The application provides a lot of features and configuration options. They are
@@ -116,6 +130,7 @@ documented in the following pages:
  - [Control](doc/control.md)
  - [Keyboard](doc/keyboard.md)
  - [Mouse](doc/mouse.md)
+ - [Gamepad](doc/gamepad.md)
  - [Device](doc/device.md)
  - [Window](doc/window.md)
  - [Recording](doc/recording.md)
@@ -148,11 +163,14 @@ documented in the following pages:
 
 ## Contact
 
-If you encounter a bug, please read the [FAQ](FAQ.md) first, then open an [issue].
+You can open an [issue] for bug reports, feature requests or general questions.
+
+For bug reports, please read the [FAQ](FAQ.md) first, you might find a solution
+to your problem immediately.
 
 [issue]: https://github.com/Genymobile/scrcpy/issues
 
-For general questions or discussions, you can also use:
+You can also use:
 
  - Reddit: [`r/scrcpy`](https://www.reddit.com/r/scrcpy)
  - Twitter: [`@scrcpy_app`](https://twitter.com/scrcpy_app)
