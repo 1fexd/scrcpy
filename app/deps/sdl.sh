@@ -3,11 +3,12 @@ set -ex
 DEPS_DIR=$(dirname ${BASH_SOURCE[0]})
 cd "$DEPS_DIR"
 . common
+process_args "$@"
 
-VERSION=2.30.7
+VERSION=2.32.2
 FILENAME=SDL-$VERSION.tar.gz
 PROJECT_DIR=SDL-release-$VERSION
-SHA256SUM=1578c96f62c9ae36b64e431b2aa0e0b0fd07c275dedbc694afc38e19056688f5
+SHA256SUM=f2c7297ae7b3d3910a8b131e1e2a558fdd6d1a4443d5e345374d45cadfcb05a4
 
 cd "$SOURCES_DIR"
 
@@ -17,6 +18,7 @@ then
 else
     get_file "https://github.com/libsdl-org/SDL/archive/refs/tags/release-$VERSION.tar.gz" "$FILENAME" "$SHA256SUM"
     tar xf "$FILENAME"  # First level directory is "$PROJECT_DIR"
+    patch -d "$PROJECT_DIR" -p1 < "$PATCHES_DIR"/SDL-pipewire-Ensure-that-the-correct-struct-is-used-for-.patch
 fi
 
 mkdir -p "$BUILD_DIR/$PROJECT_DIR"
@@ -25,23 +27,54 @@ cd "$BUILD_DIR/$PROJECT_DIR"
 export CFLAGS='-O2'
 export CXXFLAGS="$CFLAGS"
 
-if [[ -d "$HOST" ]]
+if [[ -d "$DIRNAME" ]]
 then
-    echo "'$PWD/$HOST' already exists, not reconfigured"
-    cd "$HOST"
+    echo "'$PWD/$HDIRNAME' already exists, not reconfigured"
+    cd "$DIRNAME"
 else
-    mkdir "$HOST"
-    cd "$HOST"
+    mkdir "$DIRNAME"
+    cd "$DIRNAME"
 
-    "$SOURCES_DIR/$PROJECT_DIR"/configure \
-        --prefix="$INSTALL_DIR/$HOST" \
-        --host="$HOST_TRIPLET" \
-        --enable-shared \
-        --disable-static
+    conf=(
+        --prefix="$INSTALL_DIR/$DIRNAME"
+    )
+
+    if [[ "$HOST" == linux ]]
+    then
+        conf+=(
+            --enable-video-wayland
+            --enable-video-x11
+        )
+    fi
+
+    if [[ "$LINK_TYPE" == static ]]
+    then
+        conf+=(
+            --enable-static
+            --disable-shared
+        )
+    else
+        conf+=(
+            --disable-static
+            --enable-shared
+        )
+    fi
+
+    if [[ "$BUILD_TYPE" == cross ]]
+    then
+        conf+=(
+            --host="$HOST_TRIPLET"
+        )
+    fi
+
+    "$SOURCES_DIR/$PROJECT_DIR"/configure "${conf[@]}"
 fi
 
 make -j
 # There is no "make install-strip"
 make install
 # Strip manually
-${HOST_TRIPLET}-strip "$INSTALL_DIR/$HOST/bin/SDL2.dll"
+if [[ "$LINK_TYPE" == shared && "$HOST" == win* ]]
+then
+    ${HOST_TRIPLET}-strip "$INSTALL_DIR/$DIRNAME/bin/SDL2.dll"
+fi

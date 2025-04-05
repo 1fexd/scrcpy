@@ -3,11 +3,12 @@ set -ex
 DEPS_DIR=$(dirname ${BASH_SOURCE[0]})
 cd "$DEPS_DIR"
 . common
+process_args "$@"
 
-VERSION=1.0.27
+VERSION=1.0.28
 FILENAME=libusb-$VERSION.tar.gz
 PROJECT_DIR=libusb-$VERSION
-SHA256SUM=e8f18a7a36ecbb11fb820bd71540350d8f61bcd9db0d2e8c18a6fb80b214a3de
+SHA256SUM=378b3709a405065f8f9fb9f35e82d666defde4d342c2a1b181a9ac134d23c6fe
 
 cd "$SOURCES_DIR"
 
@@ -25,20 +26,40 @@ cd "$BUILD_DIR/$PROJECT_DIR"
 export CFLAGS='-O2'
 export CXXFLAGS="$CFLAGS"
 
-if [[ -d "$HOST" ]]
+if [[ -d "$DIRNAME" ]]
 then
-    echo "'$PWD/$HOST' already exists, not reconfigured"
-    cd "$HOST"
+    echo "'$PWD/$DIRNAME' already exists, not reconfigured"
+    cd "$DIRNAME"
 else
-    mkdir "$HOST"
-    cd "$HOST"
+    mkdir "$DIRNAME"
+    cd "$DIRNAME"
+
+    conf=(
+        --prefix="$INSTALL_DIR/$DIRNAME"
+    )
+
+    if [[ "$LINK_TYPE" == static ]]
+    then
+        conf+=(
+            --enable-static
+            --disable-shared
+        )
+    else
+        conf+=(
+            --disable-static
+            --enable-shared
+        )
+    fi
+
+    if [[ "$BUILD_TYPE" == cross ]]
+    then
+        conf+=(
+            --host="$HOST_TRIPLET"
+        )
+    fi
 
     "$SOURCES_DIR/$PROJECT_DIR"/bootstrap.sh
-    "$SOURCES_DIR/$PROJECT_DIR"/configure \
-        --prefix="$INSTALL_DIR/$HOST" \
-        --host="$HOST_TRIPLET" \
-        --enable-shared \
-        --disable-static
+    "$SOURCES_DIR/$PROJECT_DIR"/configure "${conf[@]}"
 fi
 
 make -j
